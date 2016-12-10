@@ -5,13 +5,16 @@ class CopyDataTask extends Task
 {
     public function mainAction()
     {
-    	$db = $this->getDi()->get('db');
+    	$db = $this->getDi()->getShared('db');
 
 		try {
 			$db->begin();
+			echo 'begin transaction' . PHP_EOL;
 
-			$db->execute('DROP TABLE IF EXISTS ip4_tmp');
-			$db->execute('CREATE TABLE ip4_tmp (LIKE ip4 INCLUDING ALL)');
+			$db->execute('DROP TABLE IF EXISTS ipv4_tmp');
+			$db->execute('CREATE TABLE ipv4_tmp (LIKE ipv4 INCLUDING ALL)');
+
+			echo 'create table' . PHP_EOL;
 
 			$handle = fopen(
 				BASE_PATH
@@ -24,37 +27,54 @@ class CopyDataTask extends Task
 				"r");
 
 			$i = 0;
-			$values = new \SplFixedArray(1000);
+			$values = [];
 			while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+
+				echo 'get csv' . PHP_EOL;
 
 				$data[0] = long2ip($data[0]);
 				$data[1] = long2ip($data[1]);
 
+				array_walk($data, function(&$item, $key) {
+					if ($key != 6 and $key != 7) {
+
+						if ($key == 3 or $key == 4 or $key == 5) {
+							$item = pg_escape_string($item);
+						}
+						$item = "'" . $item . "'";
+					}
+				});
+
 				$string = implode(',', $data);
 				$values[$i] = "($string)"; // php7 optimize
+
+				echo json_encode($values[$i]) . PHP_EOL;
 
 				if ($i >= 1000) {
 					//вставить в базу
 
 					// @todo bind params
-					$query = 'INSERT INTO ipv4 ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longtitude, zip_code, time_zone VALUES %s';
+					$query = 'INSERT INTO ipv4_tmp (ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longitude, zip_code, time_zone) VALUES %s';
 					$db->execute(sprintf($query, implode(',', $values)));
 
-					$values = new \SplFixedArray(1000);
+					$i = 0;
+					$values = [];
 				}
+
+				$i++;
 			}
 
-			$query = 'INSERT INTO ipv4 ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longtitude, zip_code, time_zone VALUES %s';
+			$query = 'INSERT INTO ipv4_tmp (ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longitude, zip_code, time_zone) VALUES %s';
 			$db->execute(sprintf($query, implode(',', $values)));
 			// вставить в базу
 			fclose($handle);
 
-			// обойти csv и вставить по строчно
-			// когда все обойдет, надо сделать ренейм
-			// поставить ip4r
+			$db->execute('ALTER TABLE ipv4 RENAME TO ipv4_old');
+			$db->execute('ALTER TABLE ipv4_tmp RENAME TO ipv4');
 
-			$db->execute('DROP TABLE IF EXISTS ip6_tmp');
-			$db->execute('CREATE TABLE ip6_tmp (LIKE ip6 INCLUDING ALL)');
+			$db->execute('ALTER SEQUENCE ipv4_id_seq OWNED BY ipv4.id');
+
+			$db->execute('DROP TABLE ipv4_old');
 
     		$db->commit();
 		} catch (Exception $e) {

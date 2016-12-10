@@ -12,8 +12,8 @@ return new \Phalcon\Config([
         'host'        => 'localhost',
         'username'    => 'dmitriy',
         'password'    => '538970',
-        'dbname'      => 'test',
-        'port'        => '5432'
+        'dbname'      => 'ip_project',
+        'port'        => '5433'
     ],
     'application' => [
         'appDir'         => APP_PATH . '/',

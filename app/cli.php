@@ -28,16 +28,22 @@ if (is_readable($configFile)) {
     $di->set("config", $config);
 }
 
-$di->set('db', function () use ($config) {
+$di->setShared('db', function () {
 
-    $config = array(
-        'host'     => $config->database->host,
+    $config = $this->getConfig();
+
+    $class = 'Phalcon\Db\Adapter\Pdo\\' . $config->database->adapter;
+    $params = [
+        'host' => $config->database->host,
         'username' => $config->database->username,
         'password' => $config->database->password,
-        'dbname'   => $config->database->dbname
-    );
+        'dbname' => $config->database->dbname,
+        'port' => $config->database->port
+    ];
 
-    return new \Phalcon\Db\Adapter\Pdo\Postgresql($config);
+    $connection = new $class($params);
+
+    return $connection;
 });
 
 
