@@ -1,5 +1,7 @@
 <?php
 
+use Phalcon\Mvc\Model\Resultset\Simple as Resultset;
+
 class Ipv4 extends \Phalcon\Mvc\Model
 {
 
@@ -121,4 +123,29 @@ class Ipv4 extends \Phalcon\Mvc\Model
         return parent::findFirst($parameters);
     }
 
+    /**
+     * Модель по ip
+     * метод find с запросом содержащий >>= не получится использовать, будет ошибка
+     * поэтому используем fetchColumn
+     *
+     * @todo почитать как сделать Fetch_Column
+     *
+     * @param $ip
+     * @return Ipv4 | null
+     */
+    public static function findByIp($ip)
+    {
+        $di = Phalcon\Di::getDefault();
+
+        /** @var \Phalcon\Db\Adapter\Pdo\Postgresql $db */
+        $db = $di->getShared('db');
+        $result = $db->fetchOne("SELECT id FROM ipv4 WHERE ip4r(ip_from, ip_to) >>= :ip",
+            Phalcon\Db::FETCH_ASSOC,
+            [
+                'ip' => $ip
+            ]
+        );
+
+        return (isset($result['id'])) ? self::findFirstByid($result['id']) : null;
+    }
 }

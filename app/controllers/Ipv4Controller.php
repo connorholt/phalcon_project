@@ -254,4 +254,25 @@ class Ipv4Controller extends ControllerBase
         ]);
     }
 
+    /**
+     * Получение данных по ip
+     * Ответ в формате json
+     *
+     * @param $ip
+     * @return \Phalcon\Http\Response
+     */
+    public function getAction($ip)
+    {
+        $this->view->disable();
+
+        $response = new \Phalcon\Http\Response();
+
+        /** @var Ipv4 $model */
+        $model = Ipv4::findByIp($ip);
+        if ($model) {
+            $response->setJsonContent($model->toArray());
+        }
+
+        return $response;
+    }
 }
