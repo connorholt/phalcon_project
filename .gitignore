@@ -1,2 +1,4 @@
 /cache/
 /public/files
+/.phalcon/
+/.idea/
