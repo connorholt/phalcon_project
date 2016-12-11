@@ -1,0 +1,83 @@
+<?php
+/**
+ * @var \Phalcon\Mvc\View\Engine\Php $this
+ */
+?>
+
+<?php use Phalcon\Tag; ?>
+
+<div class="row">
+    <nav>
+        <ul class="pager">
+            <li class="previous"><?php echo $this->tag->linkTo(["ipv4/index", "Go Back"]); ?></li>
+            <li class="next"><?php echo $this->tag->linkTo(["ipv4/new", "Create "]); ?></li>
+        </ul>
+    </nav>
+</div>
+
+<div class="page-header">
+    <h1>Search result</h1>
+</div>
+
+<?php echo $this->getContent(); ?>
+
+<div class="row">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Id</th>
+            <th>Ip Of From</th>
+            <th>Ip Of To</th>
+            <th>Country Of Code</th>
+            <th>Country Of Name</th>
+            <th>Region Of Name</th>
+            <th>City Of Name</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Zip Of Code</th>
+            <th>Time Of Zone</th>
+
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($page->items as $ipv4): ?>
+            <tr>
+                <td><?php echo $ipv4->id ?></td>
+            <td><?php echo $ipv4->ip_from ?></td>
+            <td><?php echo $ipv4->ip_to ?></td>
+            <td><?php echo $ipv4->country_code ?></td>
+            <td><?php echo $ipv4->country_name ?></td>
+            <td><?php echo $ipv4->region_name ?></td>
+            <td><?php echo $ipv4->city_name ?></td>
+            <td><?php echo $ipv4->latitude ?></td>
+            <td><?php echo $ipv4->longitude ?></td>
+            <td><?php echo $ipv4->zip_code ?></td>
+            <td><?php echo $ipv4->time_zone ?></td>
+
+                <td><?php echo $this->tag->linkTo(["ipv4/edit/" . $ipv4->id, "Edit"]); ?></td>
+                <td><?php echo $this->tag->linkTo(["ipv4/delete/" . $ipv4->id, "Delete"]); ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
+<div class="row">
+    <div class="col-sm-1">
+        <p class="pagination" style="line-height: 1.42857;padding: 6px 12px;">
+            <?php echo $page->current, "/", $page->total_pages ?>
+        </p>
+    </div>
+    <div class="col-sm-11">
+        <nav>
+            <ul class="pagination">
+                <li><?php echo $this->tag->linkTo("ipv4/search", "First") ?></li>
+                <li><?php echo $this->tag->linkTo("ipv4/search?page=" . $page->before, "Previous") ?></li>
+                <li><?php echo $this->tag->linkTo("ipv4/search?page=" . $page->next, "Next") ?></li>
+                <li><?php echo $this->tag->linkTo("ipv4/search?page=" . $page->last, "Last") ?></li>
+            </ul>
+        </nav>
+    </div>
+</div>

@@ -7,6 +7,7 @@ use Phalcon\Mvc\View\Engine\Volt as VoltEngine;
 use Phalcon\Mvc\Model\Metadata\Memory as MetaDataAdapter;
 use Phalcon\Session\Adapter\Files as SessionAdapter;
 use Phalcon\Flash\Direct as Flash;
+use Phalcon\Mvc\Dispatcher;
 
 /**
  * Shared configuration service
@@ -68,8 +69,9 @@ $di->setShared('db', function () {
         'host'     => $config->database->host,
         'username' => $config->database->username,
         'password' => $config->database->password,
-        'dbname'   => $config->database->dbname,
-        'charset'  => $config->database->charset
+        'dbname' => $config->database->dbname,
+        'charset' => $config->database->charset,
+        'port' => $config->database->port
     ];
 
     if ($config->database->adapter == 'Postgresql') {
@@ -109,4 +111,11 @@ $di->setShared('session', function () {
     $session->start();
 
     return $session;
+});
+
+/**
+ * Loading routes from the routes.php file
+ */
+$di->set('router', function () {
+    return require APP_PATH . '/config/routes.php';
 });
