@@ -30,6 +30,7 @@ class CopyDataTask extends Task
             echo 'Введите версию ip адресов 4 или 6' . PHP_EOL;
             exit;
         }
+        
 
         $v = ($params[0] == self::IP_V4) ? self::IP_V4 : self::IP_V6;
 
