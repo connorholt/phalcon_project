@@ -3,95 +3,184 @@ use Phalcon\Cli\Task;
 
 class CopyDataTask extends Task
 {
-    public function mainAction()
+    const IP_V4 = 4;
+    const IP_V6 = 6;
+
+    const FIELD_IP_FROM = 0;
+    const FIELD_IP_TO = 1;
+    const FIELD_COUNTRY_CODE = 2;
+    const FIELD_COUNTRY_NAME = 3;
+    const FIELD_REGION_NAME = 4;
+    const FIELD_CITY_NAME = 5;
+    const FIELD_LAT = 6;
+    const FIELD_LONG = 7;
+    const FIELD_ZIP_CODE = 8;
+    const FIELD_TIME_ZONE = 9;
+
+    const QUERY_COUNT = 1000;
+
+    /**
+     * Главный action
+     *
+     * @param array $params
+     */
+    public function mainAction(array $params = null)
     {
-    	$db = $this->getDi()->getShared('db');
+        if (!isset($params[0])) {
+            echo 'Введите версию ip адресов 4 или 6' . PHP_EOL;
+            exit;
+        }
 
-		try {
-			$db->begin();
-			echo 'begin transaction' . PHP_EOL;
+        $v = ($params[0] == self::IP_V4) ? self::IP_V4 : self::IP_V6;
 
-			$db->execute('DROP TABLE IF EXISTS ipv4_tmp');
-			$db->execute('CREATE TABLE ipv4_tmp (LIKE ipv4 INCLUDING ALL)');
+        $db = $this->getDi()->getShared('db');
 
-			echo 'create table' . PHP_EOL;
+        try {
+            $db->begin();
+            $this->copyData($db, $v);
+            $db->commit();
+        } catch (Exception $e) {
 
-			$handle = fopen(
-				BASE_PATH
-				. DIRECTORY_SEPARATOR
-				. 'public'
-				. DIRECTORY_SEPARATOR
-				. 'files'
-				. DIRECTORY_SEPARATOR
-				. "IP2LOCATION-LITE-DB11.CSV",
-				"r");
+            print_r($e->getMessage());
+            $db->rollback();
+        }
+    }
 
-			$i = 0;
-			$values = [];
-			while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+    /**
+     * Возвращает названия таблиц участвующих при копировании
+     *
+     * @param $v
+     * @return array
+     */
+    private function getTablesName($v)
+    {
+        return ($v == self::IP_V4)
+            ? ['ipv4', 'ipv4_tmp', 'ipv4_old']
+            : ['ipv6', 'ipv6_tmp', 'ipv6_old'];
+    }
 
-				echo 'get csv' . PHP_EOL;
+    /**
+     * Название файла
+     *
+     * @param $v
+     * @return array
+     */
+    private function getFileName($v)
+    {
+        return ($v == self::IP_V4)
+            ? 'IP2LOCATION-LITE-DB11.CSV'
+            : 'IP2LOCATION-LITE-DB11.IPV6.CSV';
+    }
 
-				$data[0] = long2ip($data[0]);
-				$data[1] = long2ip($data[1]);
+    /**
+     * Путь к файлам
+     *
+     * @return string
+     */
+    private function getPath()
+    {
+        return BASE_PATH
+        . DIRECTORY_SEPARATOR
+        . 'public'
+        . DIRECTORY_SEPARATOR
+        . 'files'
+        . DIRECTORY_SEPARATOR;
+    }
 
-				array_walk($data, function(&$item, $key) {
-					if ($key != 6 and $key != 7) {
+    /**
+     * Процесс копирования ip адресов
+     *
+     * Создаем временную таблицу
+     * Копируем туда все данные
+     * Переименовываем старую таблицу
+     * Временную переименовываем на текущую
+     * Ставим сиквенс на новую таблицу
+     * Удаляем старую таблицу
+     *
+     * Все это в транзакции
+     *
+     * @param $v
+     * @param $db
+     */
+    private function copyData($db, $v)
+    {
+        /** @var \Phalcon\Db\Adapter\Pdo\Postgresql $db */
 
-						if ($key == 3 or $key == 4 or $key == 5) {
-							$item = pg_escape_string($item);
-						}
-						$item = "'" . $item . "'";
-					}
-				});
+        list(
+            $table,
+            $tableTmp,
+            $tableOld
+            ) = $this->getTablesName($v);
 
-				$string = implode(',', $data);
-				$values[$i] = "($string)"; // php7 optimize
+        echo $table . PHP_EOL;
+        echo $tableTmp . PHP_EOL;
+        echo $tableOld . PHP_EOL;
 
-				echo json_encode($values[$i]) . PHP_EOL;
+        $db->execute("DROP TABLE IF EXISTS $tableTmp");
+        $db->execute("CREATE TABLE $tableTmp (LIKE $table INCLUDING ALL)");
 
-				if ($i >= 1000) {
-					//вставить в базу
+        $handle = fopen($this->getPath() . $this->getFileName($v), "r");
 
-					// @todo bind params
-					$query = 'INSERT INTO ipv4_tmp (ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longitude, zip_code, time_zone) VALUES %s';
-					$db->execute(sprintf($query, implode(',', $values)));
+        $i = 0;
+        $values = [];
+        $query = 'INSERT INTO ' . $tableTmp . ' (ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longitude, zip_code, time_zone) VALUES %s';
 
-					$i = 0;
-					$values = [];
-				}
+        while (($data = fgetcsv($handle, 1000, ",")) !== false) {
 
-				$i++;
-			}
+            $data = $this->prepare($data);
 
-			$query = 'INSERT INTO ipv4_tmp (ip_from, ip_to, country_code, country_name, region_name, city_name, latitude, longitude, zip_code, time_zone) VALUES %s';
-			$db->execute(sprintf($query, implode(',', $values)));
-			// вставить в базу
-			fclose($handle);
+            $string = implode(',', $data);
+            $values[$i] = "($string)"; // php7 optimize
 
-			$db->execute('ALTER TABLE ipv4 RENAME TO ipv4_old');
-			$db->execute('ALTER TABLE ipv4_tmp RENAME TO ipv4');
+            echo json_encode($values[$i]) . PHP_EOL;
 
-			$db->execute('ALTER SEQUENCE ipv4_id_seq OWNED BY ipv4.id');
+            if (isset($values[self::QUERY_COUNT])) { // isset самый быстрый способ проверить
+                $db->execute(sprintf($query, implode(',', $values)));
 
-			$db->execute('DROP TABLE ipv4_old');
+                $i = 0;
+                $values = [];
+            }
+            $i++;
+        }
+        // добавляем остаток
+        $db->execute(sprintf($query, implode(',', $values)));
 
-    		$db->commit();
-		} catch (Exception $e) {
-    		
-			print_r($e->getMessage());
 
-    		$db->rollback();
-		}
-    	
+        fclose($handle);
 
-    	// начать транзакцию
-    	// создать копию таблиц
-    	// заполнить копию таблиц данными
-    	// изменить sequence
-    	// переименовать таблицы
-    	// удалить старую таблицу
-        // COPY ip2location_db11_ipv6 FROM 'IP2LOCATION-LITE-DB11.IPV6.CSV' WITH CSV QUOTE AS '"';
-        // COPY ip2location_db11_ipv6 FROM 'IP2LOCATION-LITE-DB11.IPV6.CSV' WITH CSV QUOTE AS '"';
+        $db->execute("ALTER TABLE $table RENAME TO $tableOld");
+        $db->execute("ALTER TABLE $tableTmp RENAME TO $table");
+
+        if ($v == self::IP_V4) {
+            $db->execute('ALTER SEQUENCE ipv4_id_seq OWNED BY ipv4.id');
+        } else {
+            $db->execute('ALTER SEQUENCE ipv6_id_seq OWNED BY ipv6.id');
+        }
+        $db->execute("DROP TABLE $tableOld");
+    }
+
+    /**
+     * Подготавливаем данные с csv под структуру базы
+     *
+     * @param $data
+     * @return mixed
+     */
+    private function prepare($data)
+    {
+        $data[self::FIELD_IP_FROM] = long2ip($data[self::FIELD_IP_FROM]);
+        $data[self::FIELD_IP_TO] = long2ip($data[self::FIELD_IP_TO]);
+
+        array_walk($data, function (&$item, $key) {
+            if ($key != self::FIELD_LAT and $key != self::FIELD_LONG) {
+                if ($key == self::FIELD_COUNTRY_NAME
+                    or $key == self::FIELD_REGION_NAME
+                    or $key == self::FIELD_CITY_NAME
+                ) {
+                    $item = pg_escape_string($item);
+                }
+                $item = "'$item'";
+            }
+        });
+        return $data;
     }
 }
