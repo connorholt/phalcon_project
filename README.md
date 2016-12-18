@@ -2,9 +2,11 @@
 
 ### Используемые технологии:
 1. Php framework phalcon
+   (phalcon устанавливается как расширение php, затем надо поставить dev-tools (https://docs.phalconphp.com/en/3.0.2/reference/tools.html), и создать папку с проектом ip, сделать в папку git clone)
 2. Postgres
 3. Расширение postgres ip4r (https://github.com/RhodiumToad/ip4r)
 4. База ip адресов ip2location http://lite.ip2location.com/database/ip-country-region-city-latitude-longitude-zipcode-timezone
+5. Для запуска тестов нужен phpunit, также в composer dev-tools добавить https://github.com/phalcon/incubator
 
 ### Установка проекта:
 1. Поставить phalcon, postgres + ip4r
@@ -31,5 +33,4 @@
 2. Поиск в базе среди ~4000000 ip адресов (v4), по интервалу ip занимает в среднем 0,07 ms
 
 ### @todo
-1. Тесты
-2. Обращение к api 
+1. Обернуть в докер
